@@ -4,72 +4,62 @@
 #define __GRID_GRID_HPP__
 
 #include <cstdlib>
-#include <vector>
+#include <array>
 #include <cmath>
 #include <string>
 
 
 // ---------------------------------------------------------------------------------------------- //
-//template <class vec_type>  // ------------------------------------------------------------------- //
-class Grid {  // -- Base Class to define a grid ------------------------------------------------- //
- public:
-  typedef std::vector<double> vec_type;
-
- protected:
-  size_t N_points;
-  vec_type xpts, wpts;
-////// initialise the grid memory, doesn't initialise points xpts or wpts
-  // Grid () {}
-  Grid(size_t N_in, std::string name_in = "",
-       double a_in = -1.0, double x0_in = 0.0, double b_in = 1.0 )
-    : N_points(N_in), xpts(N_in), wpts(N_in), name(name_in),
-      a(a_in), x0(x0_in), b(b_in)
-  {}
+template <size_t N>  // ------------------------------------------------------------------------- //
+class Grid {  // ------------------------------------------------- Base Class to define a grid -- //
+protected:
+  std::array<N,double> vec_type xpts, wpts;
+  const double a = -1.0, x0 = 0.0, b = 1.0;  // end points and 'center' of the grid
 ////// to be defined and depend on the grid
   virtual double x_func(const size_t & i) const = 0;
-////// initialise x_grid and weights from this grid
-  void auto_grid() {
-    for (size_t i = 0; i < N_points; ++i)
-      xpts[i] = x_func(i);
-    w_from_x();
-  }
-////// for grids that don't have a simple analytic w
-  void w_from_x() {
-    for (size_t i = 0; i < N_points; i++) {
-      wpts[i] = 1.0;
-      for (size_t k = 0; k < N_points; k++)
-        if (k != i)
-          wpts[i] *= xpts[i]-xpts[k];
-      wpts[i] = 1.0/wpts[i];
-    }
-    scale_w();
-  }
-////// scale wpts so that largest value is 1
-  void scale_w() {
-    double w_big = 0.0;
-    for ( const double &w : wpts )
-      if ( std::abs(w) > w_big )
-        w_big = std::abs(w);
-    for ( double &w : wpts )
-      w /= w_big;
-  }
-
  public:  // ------------------------------------------------------------------------------------ //
-    std::string name = "";  // name of the grid....
-  double a = -1.0, x0 = 0.0, b = 1.0;  // end points and 'center' of the grid
 ////// return size of grid
   size_t size() const {
-    return N_points;
+    return N;
   }
 ////// call element i of x or w grid
-  double operator[] (const size_t & i) const {
+  double &operator[] (const size_t & i) {
     return xpts[i];
   }
-  double w(const size_t & i) const {
+  double &w (const size_t & i) {
     return wpts[i];
   }
-
+protected:  // -- initialise the grid ----------------------------------------------------------- //
+  Grid ( double a_in, double x0_in, double b_in )
+    : a(a_in), x0(x0_in), b(b_in)
+  {}
 }; // ------------------------------------------------------------------------------------------- //
+
+void auto_grid() {  // initialise x_grid and weights from this grid
+  for (size_t i = 0; i < N; ++i)
+    xpts[i] = x_func(i);
+  w_from_x();
+}
+template <typename vec_type>
+void w_from_x (const vec_type &x, vec_type &w) {  // for grids that don't have a simple analytic w
+  for (size_t i = 0; i < N; i++) {
+    wpts[i] = 1.0;
+    for (size_t k = 0; k < N; k++)
+      if (k != i)
+        wpts[i] *= xpts[i]-xpts[k];
+    wpts[i] = 1.0/wpts[i];
+  }
+  scale_vec(w);
+}
+template <typename vec_type>
+void scale_vec ( vec_type &w ) {  // scale vector so that largest value is 1
+  double w_big = 0.0;
+  for ( const double &w : wpts )
+    if ( std::abs(w) > w_big )
+      w_big = std::abs(w);
+  for ( double &w : wpts )
+    w /= w_big;
+}
 
 
 
