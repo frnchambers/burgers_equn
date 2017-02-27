@@ -1,133 +1,146 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <vector>
 #include <cmath>
+
+#include <utility>
 
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/odeint.hpp>
 
-#include <Grid/Grid.hpp>
-#include <Interpolation/Interp_lagrange.hpp>
+#include <Derivatives/Grid.hpp>
+#include <Derivatives/Lagrange.hpp>
 
 
-typedef lagrange_types::vec_type vec_type;
 
-
-template <class grid_type>  // ----------------------------------------------------------------------- //
-class burgers_equn {  // ----------------------------------------------------------------------------- //
+template <size_t N>  // ------------------------------------------------------------------------- //
+class burgers_equn {  // ------------------------------------------------------------------------ //
 public:
 
 // numerical accuracies
   const double
-    epsrel=1.0e-6,
+    epsrel=1.0e-3,
     epsabs=0.0;
   
 // parameters in solution
   double nu=1.0;
 
 // grid quantities
-  size_t N_pts;
-  lagrange<grid_type> diff;
-  vec_type dudx, d2udx2;
+  Grid_base<N> &grid;
+  lagrange<N> diff;
+  algebra::vector dudx, d2udx2;
 
-  burgers_equn ( size_t N_in, const double nu_in )
-    : nu(nu_in), N_pts(N_in), diff(N_in), dudx(N_in), d2udx2(N_in)
+  burgers_equn ( Grid_base<N> &grid_in, double nu_in )
+    : nu(nu_in),
+      grid(grid_in), diff(grid), dudx(N), d2udx2(N)
   {}
 
-  vec_type init_u () {
-    vec_type u_pts(N_pts);
-    for ( size_t i=0; i<N_pts; ++i )
-      u_pts[i] = - sin( diff[i] );
+  size_t size() const {
+    return grid.size();
+  }
+
+  algebra::vector init_u () {
+    algebra::vector u_pts(N);
+    for ( size_t i=0; i<N; ++i )
+      u_pts[i] = - sin( grid[i] );
     return u_pts;
   }
 
-
-  void operator() ( const vec_type &u , vec_type &dudt , double t ) {
+  void operator() ( const algebra::vector &u , algebra::vector &dudt , double t ) {
 
     dudx   = diff.derivs(u);
     d2udx2 = diff.derivs2(u);
 
   // boundary points constant
     dudt[0] = 0.0;
-    dudt[N_pts-1] = 0.0;
+    dudt[N-1] = 0.0;
     
   // inner points
-    for ( size_t i=1; i<N_pts-1; ++i )
+    for ( size_t i=1; i<N-1; ++i )
       dudt[i] = -u[i]*dudx[i] + nu*d2udx2[i];
   }
 
 };  // ------------------------------------------------------------------------------------------ //
 
 
-// class observer {  // ---------------------------------------------------------------------------- //
-// public:
 
-//   void operator() ( const vec_type &u, double t ) {
-//     std::cout << "t = " << t << "\n";
-//     // for ( size_t i=0; i<u.size(); ++i )
-//     //   std::cout << u[i] << '\n';
-//   }
-
-// };  // ------------------------------------------------------------------------------------------ //
-
-template <class ode_type>  // ------------------------------------------------------------------- //
 class observer {  // ---------------------------------------------------------------------------- //
 public:
 
-  const ode_type & ode;
-  std::ofstream out;
+  std::vector<std::pair<algebra::vector, double> > &ut_save;
 
-  observer ( const ode_type & ode_in, std::string filename )
-    : ode(ode_in), out(filename)
-  {
-    out << std::scientific << std::setprecision(5) <<
-      "# solution to buger's equation\n" <<
-      "# N  = " << ode.N_pts << '\n' <<
-      "# nu = " << ode.nu << '\n';
+  observer ( std::vector<std::pair<algebra::vector, double> > &ut_in )
+    : ut_save(ut_in)
+  {}
+
+  void operator() ( const algebra::vector &u, double t ) {
+    std::cout << "\"t = " << t << "\r";
+    ut_save.push_back( std::make_pair(u, t) );
   }
 
-  void operator() ( const vec_type &u, double t ) {
-    out << "\"t = " << t << "\"\n";
-    for ( size_t i=0; i<ode.N_pts; ++i )
-      out << ode.diff[i] << ' ' << u[i] << ' ' << ode.dudx[i] << ' ' << ode.d2udx2[i] << '\n';
-    out << "e" << std::endl;
+  template <class ode_type>
+  void output ( const ode_type &ode, const std::string &filename ) {
+    std::ofstream out(filename);
+    out << std::scientific << std::setprecision(5) <<
+      "# solution to buger's equation\n" <<
+      "# N  = " << ode.size() << '\n' <<
+      "# nu = " << ode.nu << '\n';
+    for ( const auto pair : ut_save ) {
+      const algebra::vector u(pair.first);
+
+      out << "\"t = " << pair.second << "\"\n";
+      for ( size_t i=0; i<ode.size(); ++i )
+        out << ode.grid[i] << ' ' << u[i] << '\n'; // << ode.dudx[i] << ' ' << ode.d2udx2[i] << '\n';
+      out << "e" << std::endl;
+
+    }
+
   }
 
 };  // ------------------------------------------------------------------------------------------ //
 
 
 int main( int argc, char * argv[] ) {
-
-  typedef burgers_equn<Cheb_1> ode_type;
-
   std::cout << std::scientific << std::setprecision(5);
 
-  size_t N_pts=21;
-  if ( argc>1 )
-    N_pts = atoi(argv[1]);
+  const size_t N_pts=21;
+  const double a=-1.0, b=1.0, nu=1.0;
 
-  std::cout << "# initialised burgers" << std::endl;
-  ode_type burgers( N_pts, 1.0 );
-  vec_type u_pts = burgers.init_u();
+  std::cout << "# Initialising grid...\n";
+  Cheb_2<N_pts> grid(a, b);
 
-  observer<ode_type> obs(burgers, "data/solun.dat");
-  // observer obs(burgers,"data/solun.dat");
+  std::cout << "# Initialising equation set-up...\n";
+  burgers_equn<N_pts> burgers(grid, nu);
+
+  std::cout << "# Initialising initial u...\n";
+  algebra::vector u_pts = burgers.init_u();
+
+  // std::cout << "# Printing:\n";
+  // for ( size_t i=0; i<N_pts; ++i )
+  //   std::cout << grid[i] << ' ' << u_pts[i] << '\n';
+
+  std::vector<std::pair<algebra::vector, double> > ut_save;
+  observer obs(ut_save);
+
 
   double t0=0.0, t1=1.0, dt_init=1.0e-3;
   {
     namespace ode = boost::numeric::odeint;
     size_t n_steps = integrate_adaptive(
                                         ode::make_controlled<
-                                        ode::runge_kutta_dopri5<vec_type> >(
-                                                                            burgers.epsabs,
-                                                                            burgers.epsrel ),
+                                        ode::runge_kutta_dopri5<
+                                        algebra::vector> >(
+                                                           burgers.epsabs,
+                                                           burgers.epsrel ),
                                         burgers,
                                         u_pts, t0, t1, dt_init,
                                         obs );
-
-    std::cout << n_steps << std::endl;
+    obs(u_pts, t1);
+    std::cout << "# N steps = " << n_steps << std::endl;
   }
 
+  obs.output(burgers, "data/burgers.dat");
 
 }

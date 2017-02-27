@@ -1,19 +1,11 @@
 // Copyright 2016 frnchambers
 
-#ifndef __GRID_GRID_HPP__
-#define __GRID_GRID_HPP__
+#ifndef __DERIVATIVES_GRID_HPP__
+#define __DERIVATIVES_GRID_HPP__
 
-#include <cstdlib>
-#include <array>
 #include <cmath>
+#include <Derivatives/Types.hpp>
 
-
-namespace grid_types {
-  template <size_t N>
-  using vector = std::array<N,double>;
-  //template <size_t N>
-  using matrix = boost::numeric::ublas::matrix< double > mat_type;
-}
 
 
 template <typename vec_type>
@@ -22,36 +14,46 @@ void norm_vec (vec_type &v, double norm=1.0) {  // normalise vector so that larg
   for ( const auto & vi : v )
     if ( std::abs(vi) > std::abs(v_biggest) )
       v_biggest = vi;
-  for ( double &vi : vpts )
+  for ( double &vi : v )
     vi *= norm / v_biggest;
+}
+
+template <typename vec_type>
+void w_from_x (vec_type &w, const vec_type &x) {  // for grids that don't have a simple analytic w
+  size_t N=w.size();
+  for ( size_t i=0; i < N; ++i ) {
+    w[i] = 1.0;
+    for ( size_t k=0; k < N; ++k ) {
+      if (k != i)
+        w[i] *= x[i]-x[k];
+    }
+    w[i] = 1.0/w[i];
+  }
+  norm_vec(w);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ---------------------------------------------------------------------------------------------- //
 template <size_t N>  // ------------------------------------------------------------------------- //
-class Grid_base {  // ------------------------------------------------- Base Class to define a grid -- //
+class Grid_base {  // -------------------------------------------- Base Class to define a grid -- //
 protected:
-  grid_types::vector<N> vec xpts, wpts;
-  const double a = -1.0, x0 = 0.0, b = 1.0;  // end points and 'center' of the grid 
+  grid_types::vector<N> xpts, wpts;
+  // const double a = -1.0, x0 = 0.0, b = 1.0;  // end points and 'center' of the grid 
   virtual double x_func(const size_t & i) const = 0;  // depends on the grid
-  Grid_base ( double a_in, double x0_in, double b_in )
-    : a(a_in), x0(x0_in), b(b_in)
-  {}
+  virtual double w_func(const size_t & i) const = 0;  // depends on the grid
+  // Grid_base ( double a_in, double x0_in, double b_in )
+  //   : a(a_in), x0(x0_in), b(b_in)
+  // {}
   void auto_grid() {
     for (size_t i = 0; i < N; ++i)
       xpts[i] = x_func(i);
-    w_from_x();
+    w_from_x(wpts, xpts);
   }
-  void w_from_x () {  // for grids that don't have a simple analytic w
-    for ( size_t i=0; i < N; ++i ) {
-      w[i] = 1.0;
-      for ( size_t k=0; k < N; ++k ) {
-        if (k != i)
-          w[i] *= x[i]-x[k];
-      }
-      w[i] = 1.0/w[i];
+  void set_grid() {
+    for (size_t i = 0; i < N; ++i) {
+      xpts[i] = x_func(i);
+      wpts[i] = w_func(i);
     }
-    norm_vec(w);
   }
 public:  // ------------------------------------------------------------------------------------- //
 ////// return size of grid
@@ -59,8 +61,15 @@ public:  // --------------------------------------------------------------------
     return N;
   }
 ////// call element i of x or w grid
-  double &operator[] (const size_t & i) { return xpts[i]; }
-  double &w (const size_t & i) { return wpts[i]; }
+  double operator[] (const size_t & i) const {
+    return xpts[i];
+  }
+  double &w (const size_t & i) {
+    return wpts[i];
+  }
+  double &x (const size_t & i) {
+    return xpts[i];
+  }
 }; // ------------------------------------------------------------------------------------------- //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -68,39 +77,51 @@ public:  // --------------------------------------------------------------------
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ---------------------------------------------------------------------------------------------- //
 template <size_t N>  // ------------------------------------------------------------------------- //
-class Even : public Grid_base<N> {  // ------------------------------------------ Evenly space grid -- //
- private:
+class Even : public Grid_base<N> {  // ------------------------------------- Evenly space grid -- //
+  using Base = Grid_base<N>;
+private:
+  const double a = -1.0, x0 = 0.0, b = 1.0;  // end points and 'center' of the grid 
 ////// default parameters for grid centered at 0, with boundaries: -1,1
-  double x_func(const size_t & i) const {
+  double x_func (const size_t &i) const {
     return a + ( b-a ) * static_cast<double>(i) / static_cast<double>(N-1);
   }
+  double w_func (const size_t &i) const {
+    return 0;
+  }
  public:
-  Even ( double a_in = -1.0, double x0_in = 0.0, double b_in = 1.0)
-    : Grid_base<N>::Grid_base(a_in, x0_in, b_in)
+  Even ( double a_in = -1.0, double x0_in = 0.0, double b_in = 1.0 )
+    : a(a_in), x0(x0_in), b(b_in)
   {
-    auto_grid();
+    Base::auto_grid();
   }
   // void reset(double a_in, double x0_in, double b_in) {
   //   a = a_in; x0 = x0_in; b = b_in;
   //   Grid_base<N>::auto_grid();
   // }
 };  // ------------------------------------------------------------------------------------------ //
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ---------------------------------------------------------------------------------------------- //
 template <size_t N>  // ------------------------------------------------------------------------- //
-class Sinh : public Grid_base<N> {  // ------------------------------- Shiny log -> A.L. Watts 2016 -- //
- private:
+class Sinh : public Grid_base<N> {  // -------------------------- Shiny log -> A.L. Watts 2016 -- //
+  using Base = Grid_base<N>;
+private:
 ////// default parameters for grid centered at 0, with boundaries: -1,1
-  const double d=-1.0, m=2.0;
+  const double
+    a = -1.0, x0 = 0.0, b = 1.0,
+    d = -1.0, m = 2.0;
   //  formulae for x0, m, and d: x = x0 + sinh( d + m * i/(N-1) )
   //  for x 'element of' [a,b]:
   //                -> d = asinh( a-x0 )
   //                -> m = asinh( b-x0 ) - asinh( a-x0 )
   double x_func(const size_t & i) const {
-    double z = d + m * static_cast<double>(i) / static_cast<double>(N_points-1);
+    double z = d + m * static_cast<double>(i) / static_cast<double>(N-1);
     return x0 + std::sinh( z );
+  }
+  double w_func (const size_t & i) const {
+    return 0;
   }
 ////// set up parameters that characterise the grid
   double d_param (const double & a_in, const double & x0_in, const double & b_in) {
@@ -110,9 +131,9 @@ class Sinh : public Grid_base<N> {  // ------------------------------- Shiny log
     return std::asinh(b_in - x0_in) - std::asinh(a_in - x0_in);
   }
 public:
-  Sinh( double a_in = -1.0, double x0_in = 0.0, double b_in = 1.0)
-    : Grid_base<N>::Grid_base(a_in, x0_in, b_in),
-      d(d_param(a,b,c)), m(m_param(a,b,c))
+  Sinh ( double a_in = -1.0, double x0_in = 0.0, double b_in = 1.0)
+    : a(a_in), x0(x0_in), b(b_in),
+      d(d_param(a,x0,b)), m(m_param(a,x0,b))
   {
     Grid_base<N>::auto_grid();
   }
@@ -123,14 +144,16 @@ public:
   //   auto_grid();
   // }
 };  // ------------------------------------------------------------------------------------------ //
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
-
-
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // ---------------------------------------------------------------------------------------------- //
 template <size_t N>  // ------------------------------------------------------------------------- //
-class Cheb_1 : public Grid_base<N> {  // ---------------------------------------- gauss-lobato mesh -- //
+class Cheb_1 : public Grid_base<N> {  // ----------------------------------- gauss-lobato mesh -- //
+  using Base = Grid_base<N>;
 private:
+  const double a = -1.0, b = 1.0;
   double x_func(const size_t & i) const {
     double t = std::cos(M_PI * static_cast<double>(2*i + 1)
                         / static_cast<double>(2*N) );
@@ -141,30 +164,28 @@ private:
         std::sin(M_PI * static_cast<double>(2*i + 1)
                  / static_cast<double>(2*N) );
   }
-  void set_grid() {
-    for ( size_t i = 0; i < N; ++i ) {
-      xpts[i] = x_func(i);
-      wpts[i] = w_func(i);
-    }
-  }
  public:
   Cheb_1(double a_in = -1.0, double b_in = 1.0)
-    : Grid_base<N>::Grid_base(a_in, 0.5*(a_in+b_in), b_in)
+    : a(a_in), b(b_in)
   {
-    set_grid();
+    Base::set_grid();
   }
   // void reset(double a_in, double b_in) {
   //   a = a_in; b = b_in;
   //   set_grid();
   // }
 };  // ------------------------------------------------------------------------------------------ //
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // ---------------------------------------------------------------------------------------------- //
 template <size_t N>  // ------------------------------------------------------------------------- //
 class Cheb_2 : public Grid_base<N> {  // -------------------------------------------------------- //
- private:
+  using Base = Grid_base<N>;
+private:
+  const double a = -1.0, b = 1.0;
   double x_func(const size_t & i) const {
     double t = std::cos(M_PI * static_cast<double>(i)
                         / (static_cast<double>(N-1) ) );
@@ -174,17 +195,11 @@ class Cheb_2 : public Grid_base<N> {  // ---------------------------------------
     return ( i == 0 || i == N-1 ? 0.5 : 1.0 )
         * (i%2 == 1 ? -1.0 : 1.0);
   }
-  void set_grid() {
-    for (size_t i = 0; i < N; ++i) {
-      xpts[i] = x_func(i);
-      wpts[i] = w_func(i);
-    }
-  }
  public:
   Cheb_2(double a_in = -1.0, double b_in = 1.0)
-    : Grid_base<N>::Grid_base(a_in, 0.5*(a_in+b_in), b_in)
+    : a(a_in), b(b_in)
   {
-    set_grid();
+    Base::set_grid();
   }
   // void reset(double a_in, double x0_in, double b_in) {
   //   x0_in=x0_in;
@@ -192,6 +207,14 @@ class Cheb_2 : public Grid_base<N> {  // ---------------------------------------
   //   set_grid();
   // }
 };  // ------------------------------------------------------------------------------------------ //
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
+
 
 
 

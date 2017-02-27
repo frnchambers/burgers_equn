@@ -1,20 +1,14 @@
 CXX = g++
-CXXFLAGS = -Wall -Werror -std=c++11 #-O3
-LDFLAGS = 
+#CXXFLAGS = -Wall -Werror -ansi -DNDEBUG -mavx -std=c++14 #-O3
+CXXFLAGS = -Wall -Werror -std=c++14
+LDFLAGS = -lblas -llapack -larpack
 
-EXT_DIR=./src
-VPATH = $(EXT_DIR)/Interpolation:$(EXT_DIR)/Grid
-CXXFLAGS += -I$(EXT_DIR)
+#CXXFLAGS += -I/home/frank/bin/blaze-3.1/:/home/frank/Documents/burgers_equn/src/
+CXXFLAGS += -I./src/
 
 ## how to build exes
 %.out: %.cpp
-	$(CXX) $(CXXFLAGS) -o $@ $< $(OBJECTS) $(LDFLAGS)
-
-## how to build objects
-%.o: %.cpp
-	$(CXX) -c $(CXXFLAGS) -o $@ $<
-
-
+	$(CXX) $(CXXFLAGS) $< -o $@ $(LDFLAGS)
 
 clean:
 	rm -rf *.o *.out data/*.dat
