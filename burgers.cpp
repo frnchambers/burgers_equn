@@ -5,12 +5,11 @@
 #include <cmath>
 
 
-#include <boost/numeric/ublas/vector.hpp>
-#include <boost/numeric/ublas/matrix.hpp>
-#include <boost/numeric/odeint.hpp>
-
 #include <Derivatives/Grid.hpp>
 #include <Derivatives/Lagrange.hpp>
+
+#include <boost/numeric/odeint.hpp>
+
 
 
 
@@ -73,12 +72,7 @@ public:
 
   observer ( const burgers_equn<N> &ode_in, std::ofstream &out_in )
     : ode(ode_in), out(out_in)
-  {
-    out << std::scientific << std::setprecision(6) <<
-      "# solution to buger's equation\n" <<
-      "# N  = " << ode.size() << '\n' <<
-      "# nu = " << ode.nu << '\n';
-  }
+  {}
 
   void operator() ( const algebra::vector &u, double t ) {
     static int count=0, every=50;
@@ -86,7 +80,7 @@ public:
     std::cout << "t = " << t << "\r";
 
     if ( count % every == 0 ) {
-      // out << "\"t = " << t << "\"\n";
+      out << "\"t = " << t << "\"\n";
       for ( size_t i=0; i<ode.size(); ++i )
         out << ode.grid[i] << ' ' << u[i] << ' ' << ode.dudx[i] << ' ' << ode.d2udx2[i] << '\n';
       out << "\n" << std::endl;
@@ -101,21 +95,28 @@ public:
 int main( int argc, char * argv[] ) {
   std::cout << std::scientific << std::setprecision(5);
 
-  const size_t N_pts=31;
-  const double a=0.0, b=1.0, nu=1.0;
+  const size_t N_pts=21;
+  const double a=-1.0, b=1.0, nu=1.0;
 
   std::cout << "# Initialising grid...\n";
   Cheb_2<N_pts> grid(a, b);
 
   std::cout << "# Initialising equation set-up...\n";
   burgers_equn<N_pts> burgers(grid, nu);
-
+  
   std::cout << "# Initialising initial u...\n";
   algebra::vector u_pts = burgers.init_u();
 
   std::ofstream output("data/burgers.dat");
+  output << std::scientific;
   observer<N_pts> obs(burgers,output);
 
+
+  std::cout << std::scientific << std::setprecision(6) <<
+    "# solution to buger's equation\n" <<
+    "# N      = " << burgers.size() << '\n' <<
+    "# nu     = " << burgers.nu << '\n' <<
+    "# (a, b) = (" << a << ", " << b << ")\n";
 
   double t0=0.0, t1=1.0, dt_init=1.0e-9;
   {

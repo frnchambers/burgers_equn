@@ -10,9 +10,9 @@ set terminal pngcairo size 400,400 enhanced font 'Verdana,10'
 
 system('mkdir png')
 
-set yrange[0:1]
+set yrange[-1:1]
 
-stats datafile
+stats datafile skip 1
 
 n=0
 do for [i=1:STATS_blocks] {
