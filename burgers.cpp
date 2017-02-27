@@ -4,7 +4,6 @@
 #include <vector>
 #include <cmath>
 
-#include <utility>
 
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
@@ -21,11 +20,11 @@ public:
 
 // numerical accuracies
   const double
-    epsrel=1.0e-3,
+    epsrel=1.0e-6,
     epsabs=0.0;
   
 // parameters in solution
-  double nu=1.0;
+  const double nu=1.0;
 
 // grid quantities
   Grid_base<N> &grid;
@@ -44,7 +43,7 @@ public:
   algebra::vector init_u () {
     algebra::vector u_pts(N);
     for ( size_t i=0; i<N; ++i )
-      u_pts[i] = - sin( grid[i] );
+      u_pts[i] = std::sin( M_PI * grid[i] );
     return u_pts;
   }
 
@@ -65,38 +64,35 @@ public:
 };  // ------------------------------------------------------------------------------------------ //
 
 
-
+template <size_t N>
 class observer {  // ---------------------------------------------------------------------------- //
 public:
 
-  std::vector<std::pair<algebra::vector, double> > &ut_save;
+  const burgers_equn<N> &ode;
+  std::ofstream &out;
 
-  observer ( std::vector<std::pair<algebra::vector, double> > &ut_in )
-    : ut_save(ut_in)
-  {}
-
-  void operator() ( const algebra::vector &u, double t ) {
-    std::cout << "\"t = " << t << "\r";
-    ut_save.push_back( std::make_pair(u, t) );
-  }
-
-  template <class ode_type>
-  void output ( const ode_type &ode, const std::string &filename ) {
-    std::ofstream out(filename);
-    out << std::scientific << std::setprecision(5) <<
+  observer ( const burgers_equn<N> &ode_in, std::ofstream &out_in )
+    : ode(ode_in), out(out_in)
+  {
+    out << std::scientific << std::setprecision(6) <<
       "# solution to buger's equation\n" <<
       "# N  = " << ode.size() << '\n' <<
       "# nu = " << ode.nu << '\n';
-    for ( const auto pair : ut_save ) {
-      const algebra::vector u(pair.first);
+  }
 
-      out << "\"t = " << pair.second << "\"\n";
+  void operator() ( const algebra::vector &u, double t ) {
+    static int count=0, every=50;
+
+    std::cout << "t = " << t << "\r";
+
+    if ( count % every == 0 ) {
+      // out << "\"t = " << t << "\"\n";
       for ( size_t i=0; i<ode.size(); ++i )
-        out << ode.grid[i] << ' ' << u[i] << '\n'; // << ode.dudx[i] << ' ' << ode.d2udx2[i] << '\n';
-      out << "e" << std::endl;
-
+        out << ode.grid[i] << ' ' << u[i] << ' ' << ode.dudx[i] << ' ' << ode.d2udx2[i] << '\n';
+      out << "\n" << std::endl;
     }
 
+    count++;
   }
 
 };  // ------------------------------------------------------------------------------------------ //
@@ -105,8 +101,8 @@ public:
 int main( int argc, char * argv[] ) {
   std::cout << std::scientific << std::setprecision(5);
 
-  const size_t N_pts=21;
-  const double a=-1.0, b=1.0, nu=1.0;
+  const size_t N_pts=31;
+  const double a=0.0, b=1.0, nu=1.0;
 
   std::cout << "# Initialising grid...\n";
   Cheb_2<N_pts> grid(a, b);
@@ -117,15 +113,11 @@ int main( int argc, char * argv[] ) {
   std::cout << "# Initialising initial u...\n";
   algebra::vector u_pts = burgers.init_u();
 
-  // std::cout << "# Printing:\n";
-  // for ( size_t i=0; i<N_pts; ++i )
-  //   std::cout << grid[i] << ' ' << u_pts[i] << '\n';
-
-  std::vector<std::pair<algebra::vector, double> > ut_save;
-  observer obs(ut_save);
+  std::ofstream output("data/burgers.dat");
+  observer<N_pts> obs(burgers,output);
 
 
-  double t0=0.0, t1=1.0, dt_init=1.0e-3;
+  double t0=0.0, t1=1.0, dt_init=1.0e-9;
   {
     namespace ode = boost::numeric::odeint;
     size_t n_steps = integrate_adaptive(
@@ -140,7 +132,5 @@ int main( int argc, char * argv[] ) {
     obs(u_pts, t1);
     std::cout << "# N steps = " << n_steps << std::endl;
   }
-
-  obs.output(burgers, "data/burgers.dat");
 
 }

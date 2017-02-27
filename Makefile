@@ -1,7 +1,7 @@
 CXX = g++
 #CXXFLAGS = -Wall -Werror -ansi -DNDEBUG -mavx -std=c++14 #-O3
 CXXFLAGS = -Wall -Werror -std=c++14
-LDFLAGS = -lblas -llapack -larpack
+LDFLAGS = -lblas
 
 #CXXFLAGS += -I/home/frank/bin/blaze-3.1/:/home/frank/Documents/burgers_equn/src/
 CXXFLAGS += -I./src/
