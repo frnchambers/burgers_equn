@@ -4,7 +4,7 @@
 #include <vector>
 #include <cmath>
 
-
+#include <Derivatives/Types.hpp>
 #include <Derivatives/Grid.hpp>
 #include <Derivatives/Lagrange.hpp>
 
@@ -21,18 +21,19 @@ public:
   const double
     epsrel=1.0e-6,
     epsabs=0.0;
-  
-// parameters in solution
-  const double nu=1.0;
 
 // grid quantities
   Grid_base<N> &grid;
   lagrange<N> diff;
   algebra::vector dudx, d2udx2;
 
+// parameters in solution
+  const double nu=1.0;
+
   burgers_equn ( Grid_base<N> &grid_in, double nu_in )
-    : nu(nu_in),
-      grid(grid_in), diff(grid), dudx(N), d2udx2(N)
+    : grid(grid_in),
+      diff(grid), dudx(N), d2udx2(N),
+      nu(nu_in)
   {}
 
   size_t size() const {
@@ -75,7 +76,7 @@ public:
   {}
 
   void operator() ( const algebra::vector &u, double t ) {
-    static int count=0, every=50;
+    static int count=0, every=100;
 
     std::cout << "t = " << t << "\r";
 
@@ -95,7 +96,13 @@ public:
 int main( int argc, char * argv[] ) {
   std::cout << std::scientific << std::setprecision(5);
 
+#if defined NGRID
+  const size_t N_pts=NGRID;
+#else
+#warning no grid size specified, using default value of 21
   const size_t N_pts=21;
+#endif
+
   const double a=-1.0, b=1.0, nu=1.0;
 
   std::cout << "# Initialising grid...\n";

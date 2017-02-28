@@ -42,10 +42,12 @@ public:
   }
 
   algebra::vector derivs  ( const algebra::vector &fpts ) const {
-    return algebra::prod( d1lpts, fpts );
+    // return algebra::prod( d1lpts, fpts );
+    return prod( d1lpts, fpts );
   }
   algebra::vector derivs2 ( const algebra::vector &fpts ) const {
-    return algebra::prod( d2lpts, fpts );
+    // return algebra::prod( d2lpts, fpts );
+    return prod( d2lpts, fpts );
   }
 
   double df_FD_d ( const size_t &i, const size_t &j ) const {

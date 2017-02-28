@@ -38,22 +38,28 @@ template <size_t N>  // --------------------------------------------------------
 class Grid_base {  // -------------------------------------------- Base Class to define a grid -- //
 protected:
   grid_types::vector<N> xpts, wpts;
-  // const double a = -1.0, x0 = 0.0, b = 1.0;  // end points and 'center' of the grid 
+  const double a=-1.0, b=1.0;  // end points of the grid 
   virtual double x_func(const size_t & i) const = 0;  // depends on the grid
   virtual double w_func(const size_t & i) const = 0;  // depends on the grid
-  // Grid_base ( double a_in, double x0_in, double b_in )
-  //   : a(a_in), x0(x0_in), b(b_in)
-  // {}
+  Grid_base ( double a_in, double b_in )
+    : a(a_in), b(b_in)
+  {}
   void auto_grid() {
-    for (size_t i = 0; i < N; ++i)
+    for (size_t i=1; i<N-1; ++i)
       xpts[i] = x_func(i);
+    xpts[0] = a;  xpts[N-1] = b;
+    xpts[0] = a;  xpts[N-1] = b;
+  // fix end points
     w_from_x(wpts, xpts);
   }
   void set_grid() {
-    for (size_t i = 0; i < N; ++i) {
+    for (size_t i=0; i<N; ++i) {
       xpts[i] = x_func(i);
       wpts[i] = w_func(i);
     }
+  // fix end points
+    xpts[0] = a;  xpts[N-1] = b;
+    xpts[0] = a;  xpts[N-1] = b;
   }
 public:  // ------------------------------------------------------------------------------------- //
 ////// return size of grid
@@ -80,17 +86,17 @@ template <size_t N>  // --------------------------------------------------------
 class Even : public Grid_base<N> {  // ------------------------------------- Evenly space grid -- //
   using Base = Grid_base<N>;
 private:
-  const double a = -1.0, x0 = 0.0, b = 1.0;  // end points and 'center' of the grid 
 ////// default parameters for grid centered at 0, with boundaries: -1,1
   double x_func (const size_t &i) const {
-    return a + ( b-a ) * static_cast<double>(i) / static_cast<double>(N-1);
+    return Base::a + ( Base::b-Base::a )
+                     * static_cast<double>(i) / static_cast<double>(N-1);
   }
   double w_func (const size_t &i) const {
     return 0;
   }
  public:
-  Even ( double a_in = -1.0, double x0_in = 0.0, double b_in = 1.0 )
-    : a(a_in), x0(x0_in), b(b_in)
+  Even ( double a_in = -1.0, double b_in = 1.0 )
+    : Base::Grid_base(a_in, b_in)
   {
     Base::auto_grid();
   }
@@ -110,8 +116,7 @@ class Sinh : public Grid_base<N> {  // -------------------------- Shiny log -> A
 private:
 ////// default parameters for grid centered at 0, with boundaries: -1,1
   const double
-    a = -1.0, x0 = 0.0, b = 1.0,
-    d = -1.0, m = 2.0;
+    x0=0.0, d=-1.0, m=2.0;
   //  formulae for x0, m, and d: x = x0 + sinh( d + m * i/(N-1) )
   //  for x 'element of' [a,b]:
   //                -> d = asinh( a-x0 )
@@ -132,8 +137,9 @@ private:
   }
 public:
   Sinh ( double a_in = -1.0, double x0_in = 0.0, double b_in = 1.0)
-    : a(a_in), x0(x0_in), b(b_in),
-      d(d_param(a,x0,b)), m(m_param(a,x0,b))
+    : Base::Grid_base(a_in, b_in), x0(x0_in),
+      d(d_param(Base::a, x0, Base::b)),
+      m(m_param(Base::a, x0, Base::b))
   {
     Grid_base<N>::auto_grid();
   }
@@ -153,11 +159,10 @@ template <size_t N>  // --------------------------------------------------------
 class Cheb_1 : public Grid_base<N> {  // ----------------------------------- gauss-lobato mesh -- //
   using Base = Grid_base<N>;
 private:
-  const double a = -1.0, b = 1.0;
   double x_func(const size_t & i) const {
     double t = std::cos(M_PI * static_cast<double>(2*i + 1)
                         / static_cast<double>(2*N) );
-    return 0.5*(a+b) - 0.5*(a-b)*t;
+    return 0.5*(Base::a+Base::b) - 0.5*(Base::a-Base::b)*t;
   }
   double w_func(const size_t & i) const {
     return ( i%2 == 1 ? -1.0 : 1.0 ) *
@@ -165,8 +170,8 @@ private:
                  / static_cast<double>(2*N) );
   }
  public:
-  Cheb_1(double a_in = -1.0, double b_in = 1.0)
-    : a(a_in), b(b_in)
+  Cheb_1 (double a_in = -1.0, double b_in = 1.0)
+    : Base::Grid_base(a_in, b_in)
   {
     Base::set_grid();
   }
@@ -185,19 +190,18 @@ template <size_t N>  // --------------------------------------------------------
 class Cheb_2 : public Grid_base<N> {  // -------------------------------------------------------- //
   using Base = Grid_base<N>;
 private:
-  const double a = -1.0, b = 1.0;
   double x_func(const size_t & i) const {
     double t = std::cos(M_PI * static_cast<double>(i)
                         / (static_cast<double>(N-1) ) );
-    return 0.5*(a+b) + 0.5*(a-b)*t;
+    return 0.5*(Base::a+Base::b) + 0.5*(Base::a-Base::b)*t;
   }
   double w_func(const size_t & i) const {
     return ( i == 0 || i == N-1 ? 0.5 : 1.0 )
         * (i%2 == 1 ? -1.0 : 1.0);
   }
  public:
-  Cheb_2(double a_in = -1.0, double b_in = 1.0)
-    : a(a_in), b(b_in)
+  Cheb_2 (double a_in = -1.0, double b_in = 1.0)
+    : Base::Grid_base(a_in, b_in)
   {
     Base::set_grid();
   }
