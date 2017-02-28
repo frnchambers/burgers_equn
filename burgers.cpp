@@ -3,13 +3,14 @@
 #include <fstream>
 #include <vector>
 #include <cmath>
+#include <string>
+
+#include <boost/numeric/odeint.hpp>
+#include <boost/program_options.hpp>
 
 #include <Derivatives/Types.hpp>
 #include <Derivatives/Grid.hpp>
 #include <Derivatives/Lagrange.hpp>
-
-#include <boost/numeric/odeint.hpp>
-
 
 
 
@@ -103,27 +104,50 @@ int main( int argc, char * argv[] ) {
   const size_t N_pts=21;
 #endif
 
-  const double a=-1.0, b=1.0, nu=1.0;
+  double a, b, nu;
+  std::string outfile;
+
+  {
+    namespace po = boost::program_options;
+
+    po::options_description desc("Allowed options");
+    desc.add_options()
+      ("help,h", "produce help message")
+      ("LHS-boundary,a", po::value<double>(&a)->default_value(-1.0), "Left hand side boundary")
+      ("RHS-boundary,b", po::value<double>(&b)->default_value(1.0), "Right hand side boundary")
+      ("diffusion-coefficient,nu", po::value<double>(&nu)->default_value(1.0),
+       "Diffusion coefficient in equation")
+      ("output-file,O", po::value<std::string>(&outfile)->default_value(std::string("data/burgers.dat")),
+       "File to output solution")
+      ;
+
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);    
+
+    if (vm.count("help")) {
+      std::cout << desc << "\n";
+      return 1;
+    }
+  }
 
   std::cout << "# Initialising grid...\n";
   Cheb_2<N_pts> grid(a, b);
 
-  std::cout << "# Initialising equation set-up...\n";
+  std::cout << "# Initialising equation and initial conditions...\n";
   burgers_equn<N_pts> burgers(grid, nu);
-  
-  std::cout << "# Initialising initial u...\n";
   algebra::vector u_pts = burgers.init_u();
 
-  std::ofstream output("data/burgers.dat");
-  output << std::scientific;
+  std::ofstream output(outfile.c_str());
+  output << std::scientific << std::setprecision(6);
   observer<N_pts> obs(burgers,output);
 
-
-  std::cout << std::scientific << std::setprecision(6) <<
-    "# solution to buger's equation\n" <<
+  std::cout <<
+    "# solution to burger's equation\n" <<
     "# N      = " << burgers.size() << '\n' <<
     "# nu     = " << burgers.nu << '\n' <<
-    "# (a, b) = (" << a << ", " << b << ")\n";
+    "# (a, b) = (" << a << ", " << b << ")\n" <<
+    "# outputting to file: " << outfile << '\n';
 
   double t0=0.0, t1=1.0, dt_init=1.0e-9;
   {
