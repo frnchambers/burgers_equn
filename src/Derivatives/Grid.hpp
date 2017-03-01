@@ -70,10 +70,10 @@ public:  // --------------------------------------------------------------------
   double operator[] (const size_t & i) const {
     return xpts[i];
   }
-  double &w (const size_t & i) {
+  double w (const size_t & i) const {
     return wpts[i];
   }
-  double &x (const size_t & i) {
+  double x (const size_t & i) const {
     return xpts[i];
   }
 }; // ------------------------------------------------------------------------------------------- //

@@ -15,7 +15,7 @@ public:
 //private:
 
 ////// grid structure
-  Grid_base<N> &grid;
+  const Grid_base<N> &grid;
 ////// matrices used to calculate derivatives at gridpoints
   algebra::matrix
     d1lpts,  // first derivative
@@ -23,7 +23,7 @@ public:
 
 public:
 
-  lagrange ( Grid_base<N> &grid_in )
+  lagrange ( const Grid_base<N> &grid_in )
     : grid(grid_in), d1lpts(N,N), d2lpts(N,N)
   {
     std::cout << "# Initialising Derivative space\n";
@@ -41,13 +41,22 @@ public:
     return N;
   }
 
-  algebra::vector derivs  ( const algebra::vector &fpts ) const {
+  // algebra::vector derivs  ( const algebra::vector &fpts ) const {
+  //   // return algebra::prod( d1lpts, fpts );
+  //   return prod( d1lpts, fpts );
+  // }
+  // algebra::vector derivs2 ( const algebra::vector &fpts ) const {
+  //   // return algebra::prod( d2lpts, fpts );
+  //   return prod( d2lpts, fpts );
+  // }
+
+  void derivs  ( const algebra::vector &fpts, algebra::vector &dfptsdx ) const {
     // return algebra::prod( d1lpts, fpts );
-    return prod( d1lpts, fpts );
+    dfptsdx = prod( d1lpts, fpts );
   }
-  algebra::vector derivs2 ( const algebra::vector &fpts ) const {
+  void derivs2 ( const algebra::vector &fpts, algebra::vector &d2fptsdx2 ) const {
     // return algebra::prod( d2lpts, fpts );
-    return prod( d2lpts, fpts );
+    d2fptsdx2 = prod( d2lpts, fpts );
   }
 
   double df_FD_d ( const size_t &i, const size_t &j ) const {
@@ -124,6 +133,44 @@ private:
     
   }  // end update_deriv ()
 
+public:
+
+////// print grid, wpts and derivative matrices
+  void print_data ( const std::string & dirname ) const {
+    std::ofstream
+      xpts(dirname+"grid.dat"),
+      wpts(dirname+"weights.dat"),
+      d1_matrix(dirname+"d1_lpts.dat"),
+      d2_matrix(dirname+"d2_lpts.dat");
+
+    xpts << std::scientific;
+    wpts << std::scientific;
+    d1_matrix << std::scientific;
+    d2_matrix << std::scientific;
+    
+    for ( size_t i=0; i<N; i++ )
+      xpts << grid.x(i) << '\n';
+
+    for ( size_t i=0; i<N; i++ )
+      wpts << grid.w(i) << '\n';
+
+    for ( size_t i=0; i<N; i++ ) {
+      for ( size_t j=0; j<N; j++ )
+        d1_matrix << d1lpts(i,j) <<  ' ';
+      d1_matrix << '\n';
+    }
+
+    for ( size_t i=0; i<N; i++ ) {
+      for ( size_t j=0; j<N; j++ )
+        d2_matrix << d2lpts(i,j) << ' ';
+      d2_matrix << '\n';
+    }
+
+    xpts << std::flush;
+    wpts << std::flush;
+    d1_matrix << std::flush;
+    d2_matrix << std::flush;
+  } // end print_data
 
 }; // --------------------------------------------------------------------------------------------------------- //
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -137,37 +184,6 @@ private:
 //   return interpolate( fpts, x );
 // }
 
-// ////// print grid, wpts and derivative matrices
-//   void print_data () const {
-
-//     std::cout << "points:\n";
-//     for ( size_t i=0; i<N; i++ )
-//       std::cout <<
-//         grid.x(i) << "\t" <<
-//         std::endl;
-
-//     std::cout << "weights:\n";
-//     for ( size_t i=0; i<N; i++ )
-//       std::cout <<
-//         grid.w(i) << "\t" <<
-//         std::endl;
-
-//     std::cout << "d1lpts:\n";
-//     for ( size_t i=0; i<N; i++ ) {
-//       for ( size_t j=0; j<N; j++ )
-//         std::cout << d1lpts(i,j) << "\t";
-//       std::cout << std::endl;
-//     }
-
-//     std::cout << "d2lpts:\n";
-//     for ( size_t i=0; i<N; i++ ) {
-//       for ( size_t j=0; j<N; j++ )
-//         std::cout << d2lpts(i,j) << "\t";
-//       std::cout << std::endl;
-//     }
-
-
-//   } // end print_data
 
 
 #endif
