@@ -16,8 +16,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 template <size_t N>  // ------------------------------------------------------------------------- //
-class burgers_equn {  // ------------------------------------------------------------------------ //
-public:
+struct burgers_equn {  // ----------------------------------------------------------------------- //
 
 // numerical accuracies for time integration
   const double
@@ -34,7 +33,7 @@ public:
 // parameters in solution
   const double nu=1.0;
 
-  burgers_equn ( const Grid_base<N> &grid_in, double nu_in )
+  burgers_equn ( const Grid_base<N> &grid_in, const double &nu_in )
     : grid(grid_in),
       diff(grid), dudx(N), d2udx2(N), ududx(N),
       nu(nu_in)
@@ -46,7 +45,7 @@ public:
     return grid.size();
   }
 
-  algebra::vector init_u () {
+  algebra::vector init_u () const {
     algebra::vector u_pts(N);
     for ( size_t i=0; i<N; ++i )
       u_pts[i] = - std::cos( M_PI * grid[i] ); // std::sin( M_PI * grid[i] );
@@ -57,8 +56,6 @@ public:
 
     diff.derivs(u, dudx);
     diff.derivs2(u, d2udx2);
-
-    std::cout << dudx[5] << std::endl;
 
     for ( size_t i=0; i<N; ++i ) {
       ududx[i] = 0.0;
@@ -82,29 +79,34 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 template <size_t N>  // ------------------------------------------------------------------------- //
-class observer {  // ---------------------------------------------------------------------------- //
-public:
+struct observer {  // --------------------------------------------------------------------------- //
 
   const burgers_equn<N> &ode;
   std::ofstream &out;
 
   observer ( const burgers_equn<N> &ode_in, std::ofstream &out_in )
     : ode(ode_in), out(out_in)
-  {}
+  {
+    out << std::scientific << std::setprecision(6);
+  }
 
-  void operator() ( const algebra::vector &u, double t ) {
+  void operator() ( const algebra::vector &u, const double &t ) {
     static int count=0, every=10;
 
-    //std::cout << "t = " << t << "\r";
+    std::cout << "t = " << t << "\r";
 
     if ( count % every == 0 ) {
-      //out << t << '\n';
+      out << t << '\n';
+
+      ode.diff.derivs(u, ode.dudx);
+      ode.diff.derivs2(u, ode.d2udx2);
+
       for ( size_t i=0; i<ode.size(); ++i )
         out <<
           ode.grid[i] << ' ' << u[i] << ' ' <<
-          //ode.dudx[i] << ' ' << ode.ududx[i] << ' ' << ode.d2udx2[i] <<
+          ode.dudx[i] << ' ' << ode.d2udx2[i] <<
           '\n';
-      out << "e" << std::endl;
+      out << "-----" << std::endl;
     }
 
     count++;
@@ -156,11 +158,11 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
   const Cheb_2<N_pts> grid(a, b);
 
   std::cout << "# Initialising equation and initial conditions...\n";
-  burgers_equn<N_pts> burgers(grid, nu);
+  const burgers_equn<N_pts> burgers(grid, nu);
   algebra::vector u_pts = burgers.init_u();
 
+  std::cout << "# Initialising output utilities...\n";
   std::ofstream output(outfile.c_str());
-  output << std::scientific << std::setprecision(6);
   observer<N_pts> obs(burgers,output);
 
   std::cout <<
@@ -174,15 +176,12 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
   double t0=0.0, dt_init=1.0e-9;
   {
     namespace ode = boost::numeric::odeint;
-    size_t n_steps = integrate_adaptive(
-                                        ode::make_controlled<
-                                        ode::runge_kutta_dopri5<
-                                        algebra::vector> >(
-                                                           burgers.epsabs,
-                                                           burgers.epsrel ),
-                                        burgers,
-                                        u_pts, t0, t1, dt_init,
-                                        obs );
+    auto stepper = ode::make_controlled<ode::runge_kutta_dopri5<algebra::vector> >
+                                                                   (burgers.epsabs, burgers.epsrel);
+    size_t n_steps = integrate_adaptive( stepper,
+                                         burgers,
+                                         u_pts, t0, t1, dt_init,
+                                         obs );
     obs(u_pts, t1);
     std::cout << "# N steps = " << n_steps << std::endl;
   }
