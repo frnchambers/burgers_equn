@@ -37,9 +37,7 @@ struct burgers_equn {  // ------------------------------------------------------
     : grid(grid_in),
       diff(grid), dudx(N), d2udx2(N), ududx(N),
       nu(nu_in)
-  {
-    diff.print_data("data/grid/");
-  }
+  {}
 
   size_t size() const {
     return grid.size();
@@ -48,7 +46,8 @@ struct burgers_equn {  // ------------------------------------------------------
   algebra::vector init_u () const {
     algebra::vector u_pts(N);
     for ( size_t i=0; i<N; ++i )
-      u_pts[i] = - std::cos( M_PI * grid[i] ); // std::sin( M_PI * grid[i] );
+      // u_pts[i] = - std::cos( M_PI * grid[i] );
+      u_pts[i] = std::sin( M_PI * grid[i] );
     return u_pts;
   }
 
@@ -86,9 +85,7 @@ struct observer {  // ----------------------------------------------------------
 
   observer ( const burgers_equn<N> &ode_in, std::ofstream &out_in )
     : ode(ode_in), out(out_in)
-  {
-    out << std::scientific << std::setprecision(6);
-  }
+  {}
 
   void operator() ( const algebra::vector &u, const double &t ) {
     static int count=0, every=10;
@@ -96,19 +93,19 @@ struct observer {  // ----------------------------------------------------------
     std::cout << "t = " << t << "\r";
 
     if ( count % every == 0 ) {
-      out << t << '\n';
+      out << "t: " << t << ' ' << ode.nu << '\n';
 
       ode.diff.derivs(u, ode.dudx);
       ode.diff.derivs2(u, ode.d2udx2);
 
       for ( size_t i=0; i<ode.size(); ++i )
-        out <<
-          ode.grid[i] << ' ' << u[i] << ' ' <<
+        out << "d: " <<
+          u[i] << ' ' <<
           ode.dudx[i] << ' ' << ode.d2udx2[i] <<
           '\n';
       out << "-----" << std::endl;
-    }
 
+    }
     count++;
   }
 
@@ -128,8 +125,10 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
   const size_t N_pts=21;
 #endif
 
+// -- Parameters used in solution, location to save solution -- //
   double a, b, nu, t1;
-  std::string outfile;
+  std::string outfile, griddir;
+// ------------------------------------------------------------ // 
 
   {
     namespace po = boost::program_options;
@@ -142,6 +141,7 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
       ("diffusion-coefficient,nu", po::value<double>(&nu)->default_value(1.0), "Diffusion coefficient in equation")
       ("t-end,t", po::value<double>(&t1)->default_value(1.0),"Time to integrate until")
       ("output-file,O", po::value<std::string>(&outfile)->default_value(std::string("data/solution.dat")), "File to output solution")
+      ("grid-directory,G", po::value<std::string>(&griddir)->default_value(std::string("data/")), "Directory where to save grid data")
       ;
 
     po::variables_map vm;
@@ -162,16 +162,16 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
   algebra::vector u_pts = burgers.init_u();
 
   std::cout << "# Initialising output utilities...\n";
-  std::ofstream output(outfile.c_str());
-  observer<N_pts> obs(burgers,output);
-
-  std::cout <<
+  burgers.diff.save_data(griddir);
+  std::cout << "# outputting solution to file: " << outfile << "...\n";
+  std::ofstream output(outfile);
+  output << std::scientific << std::setprecision(6) <<
     "# solution to burger's equation\n" <<
-    "# N      = "  << burgers.size() << '\n' <<
-    "# nu     = "  << burgers.nu << '\n' <<
-    "# (a, b) = (" << a << ", " << b << ")\n" <<
-    "# t_end  = "  << t1 << '\n' <<
-    "# outputting to file: " << outfile << '\n';
+    "# N_grid = "   << burgers.size() << '\n' <<
+    "# nu     = "   << burgers.nu << '\n' <<
+    "# (a,b)  = ( " << a << " , " << b << " )\n" <<
+    "# t_end  = "   << t1 << '\n';
+  observer<N_pts> obs(burgers,output);
 
   double t0=0.0, dt_init=1.0e-9;
   {

@@ -136,7 +136,12 @@ private:
 public:
 
 ////// print grid, wpts and derivative matrices
-  void print_data ( const std::string & dirname ) const {
+  void save_data ( const std::string & dirname ) const {
+    std::cout <<
+      "# Saving grid data to files:\n" <<
+      "# -> grid.dat, weights.dat, d1_lpts.dat, and d2_lpts.dat\n" <<
+      "# in directory: " << dirname << std::endl;
+
     std::ofstream
       xpts(dirname+"grid.dat"),
       wpts(dirname+"weights.dat"),
@@ -148,21 +153,14 @@ public:
     d1_matrix << std::scientific;
     d2_matrix << std::scientific;
     
-    for ( size_t i=0; i<N; i++ )
+    for ( size_t i=0; i<N; i++ ) {
       xpts << grid.x(i) << '\n';
-
-    for ( size_t i=0; i<N; i++ )
       wpts << grid.w(i) << '\n';
-
-    for ( size_t i=0; i<N; i++ ) {
-      for ( size_t j=0; j<N; j++ )
+      for ( size_t j=0; j<N; j++ ) {
         d1_matrix << d1lpts(i,j) <<  ' ';
-      d1_matrix << '\n';
-    }
-
-    for ( size_t i=0; i<N; i++ ) {
-      for ( size_t j=0; j<N; j++ )
         d2_matrix << d2lpts(i,j) << ' ';
+      }
+      d1_matrix << '\n';
       d2_matrix << '\n';
     }
 
