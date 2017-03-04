@@ -4,7 +4,7 @@
 
 #include <boost/numeric/ublas/vector.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
-// #include <blaze/Math.h>
+#include <blaze/Math.h>
 
 #include <array>
 
@@ -22,21 +22,22 @@ namespace grid_types {  // -----------------------------------------------------
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ---------------------------------------------------------------------------------------------- //
 namespace algebra {  // ------------------------------------------------------------------- //
-  using vector = boost::numeric::ublas::vector< double >;
-  using matrix = boost::numeric::ublas::matrix< double >;
-  // inline vector prod ( const matrix & A, const vector & v ) {
-  //   return prod(A, v);
-  // }
+  // using vector = boost::numeric::ublas::vector< double >;
+  // using matrix = boost::numeric::ublas::matrix< double >;
 
-  // using vector = blaze::DynamicVector<double>;
-  // using matrix = blaze::DynamicMatrix<double>;
-  // vector prod ( const matrix & A, const vector & v ) {
-  //   return A * v;
-  // }
-
+  using vector = blaze::DynamicVector<double>;
+  using matrix = blaze::DynamicMatrix<double>;
 }  // ------------------------------------------------------------------------------------------- //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+// namespace boost { namespace numeric { namespace odeint {
 
+// struct is_resizeable< algebra::vector >
+// {
+//     typedef boost::true_type type;
+//     static const bool value = type::value;
+// };
+
+// } } }
 
 #endif

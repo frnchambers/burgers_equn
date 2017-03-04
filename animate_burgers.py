@@ -1,31 +1,7 @@
 #!/usr/bin/python
 
-# Double pendulum formula translated from the C code at
-# http://www.physics.usyd.edu.au/~wheat/dpend_html/solve_dpend.c
-
-
-import numpy as np
-import matplotlib
-
 import sys as sys
-
-
-## ----------------------------- whether to save the profile or not ----------------------------- ##
-save = False
-name='data/animation.mp4'
-for arg in sys.argv:
-    if( arg=="save" ):
-        save = True
-        name = sys.argv[2]
-
-if( save==True ):
-    # if working remotely need to do this for saving profiles
-    # ---> must be before importing matplotlib.pyplot or pylab!
-    matplotlib.use('Agg')
-
-## ---------------------------------------------------------------------------------------------- ##
-
-
+import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
@@ -37,25 +13,26 @@ cl = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff
 
 print "# reading data from files...."
 
+
 grid = np.loadtxt("data/grid.dat", unpack=True)
 N_grid  = len(grid)
 print "# .... have grid data"
-
+print grid
 
 time, nu = np.loadtxt("data/solution.dat", comments=["#","-----","d:"], usecols=(1,2), unpack=True)
 N_steps = len(time)
 print "# .... have time data"
+print time
 
 solun = np.loadtxt("data/solution.dat", comments=["#","-----","t:"], usecols=(1,2,3), unpack=True)
 u = np.reshape(solun[0], (N_steps,N_grid))
 du = np.reshape(solun[1], (N_steps,N_grid))
 print "# .... have solution data"
-
+print u
 
 lim_x = [np.amin(grid), np.amax(grid)]
 lim_u = [np.amin(u), np.amax(u)]
 lim_du = [np.amin(du), np.amax(du)]
-
 
 fig = plt.figure( figsize=(8, 10) )
 

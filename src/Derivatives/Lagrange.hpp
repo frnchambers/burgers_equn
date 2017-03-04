@@ -6,7 +6,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ---------------------------------------------------------------------------------------------- //
-template <size_t N>  // -------------------------------------------------------- //
+template <size_t N>  // ------------------------------------------------------------------------- //
 class lagrange { // ----------------------------------------------------------------------------- //
 // Spectral Methods routines given in:
 //          Berrut & Trefethen 2004 "Barycentric Lagrange Interpolation"
@@ -41,22 +41,13 @@ public:
     return N;
   }
 
-  // algebra::vector derivs  ( const algebra::vector &fpts ) const {
-  //   // return algebra::prod( d1lpts, fpts );
-  //   return prod( d1lpts, fpts );
-  // }
-  // algebra::vector derivs2 ( const algebra::vector &fpts ) const {
-  //   // return algebra::prod( d2lpts, fpts );
-  //   return prod( d2lpts, fpts );
-  // }
-
   void derivs  ( const algebra::vector &fpts, algebra::vector &dfptsdx ) const {
-    // return algebra::prod( d1lpts, fpts );
-    dfptsdx = prod( d1lpts, fpts );
+    // dfptsdx = prod( d1lpts, fpts );
+    dfptsdx = d1lpts * fpts;
   }
   void derivs2 ( const algebra::vector &fpts, algebra::vector &d2fptsdx2 ) const {
-    // return algebra::prod( d2lpts, fpts );
-    d2fptsdx2 = prod( d2lpts, fpts );
+    // d2fptsdx2 = prod( d2lpts, fpts );
+    d2fptsdx2 = d2lpts * fpts;
   }
 
   double df_FD_d ( const size_t &i, const size_t &j ) const {
@@ -140,7 +131,7 @@ public:
     std::cout <<
       "# Saving grid data to files:\n" <<
       "# -> grid.dat, weights.dat, d1_lpts.dat, and d2_lpts.dat\n" <<
-      "# in directory: " << dirname << std::endl;
+      "# -> in directory: " << dirname << std::endl;
 
     std::ofstream
       xpts(dirname+"grid.dat"),

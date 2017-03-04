@@ -4,17 +4,21 @@
 #include <vector>
 #include <cmath>
 #include <string>
+#include <functional>
 
-#include <boost/numeric/odeint.hpp>
 #include <boost/program_options.hpp>
 
 #include <Derivatives/Types.hpp>
 #include <Derivatives/Grid.hpp>
 #include <Derivatives/Lagrange.hpp>
 
+#include <boost/numeric/odeint.hpp>
+#include </usr/include/boost/numeric/odeint/external/blaze/blaze_resize.hpp>
+
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// ---------------------------------------------------------------------------------------------- //
 template <size_t N>  // ------------------------------------------------------------------------- //
 struct burgers_equn {  // ----------------------------------------------------------------------- //
 
@@ -77,18 +81,32 @@ struct burgers_equn {  // ------------------------------------------------------
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// ---------------------------------------------------------------------------------------------- //
 template <size_t N>  // ------------------------------------------------------------------------- //
 struct observer {  // --------------------------------------------------------------------------- //
 
   const burgers_equn<N> &ode;
   std::ofstream &out;
+  const int every;
 
-  observer ( const burgers_equn<N> &ode_in, std::ofstream &out_in )
-    : ode(ode_in), out(out_in)
-  {}
+  observer ( const burgers_equn<N> &ode_in, const std::string &griddir,
+             const double t_end, const double dt, 
+             std::ofstream &out_in )
+    : ode(ode_in), out(out_in), every( static_cast<int>(t_end/dt/10) )
+  {
+    out << std::scientific << std::setprecision(6) <<
+      "# solution to burger's equation\n" <<
+      "# N_grid = "   << N << '\n' <<
+      "# nu     = "   << ode.nu << '\n' <<
+      "# (a,b)  = ( " << ode.grid[0] << " , " << ode.grid[N-1] << " )\n" <<
+      "# t_end  = "   << t_end << '\n' <<
+      "# dt     = "   << dt << '\n' <<
+      "# every  = "   << every << '\n';
+    ode.diff.save_data(griddir);
+  }
 
   void operator() ( const algebra::vector &u, const double &t ) {
-    static int count=0, every=10;
+    static int count=0;
 
     std::cout << "t = " << t << "\r";
 
@@ -115,6 +133,7 @@ struct observer {  // ----------------------------------------------------------
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// ---------------------------------------------------------------------------------------------- //
 int main( int argc, char * argv[] ) {  // ------------------------------------------------------- //
   std::cout << std::scientific << std::setprecision(5);
 
@@ -125,9 +144,10 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
   const size_t N_pts=21;
 #endif
 
+  std::cout << N_pts << std::endl;
 // -- Parameters used in solution, location to save solution -- //
-  double a, b, nu, t1;
-  std::string outfile, griddir;
+  double a, b, nu, t1, dt;
+  std::string outdir;
 // ------------------------------------------------------------ // 
 
   {
@@ -135,13 +155,13 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
 
     po::options_description desc("Allowed options");
     desc.add_options()
-      ("help,h", "produce help message")
+      ("help", "produce help message")
       ("LHS-boundary,a", po::value<double>(&a)->default_value(-1.0), "Left hand side boundary")
       ("RHS-boundary,b", po::value<double>(&b)->default_value(1.0), "Right hand side boundary")
-      ("diffusion-coefficient,nu", po::value<double>(&nu)->default_value(1.0), "Diffusion coefficient in equation")
+      ("ode-coeff,nu", po::value<double>(&nu)->default_value(1.0), "Diffusion coefficient in equation")
+      ("dt,s", po::value<double>(&dt)->default_value(1.0e-6),"Initial time step")
       ("t-end,t", po::value<double>(&t1)->default_value(1.0),"Time to integrate until")
-      ("output-file,O", po::value<std::string>(&outfile)->default_value(std::string("data/solution.dat")), "File to output solution")
-      ("grid-directory,G", po::value<std::string>(&griddir)->default_value(std::string("data/")), "Directory where to save grid data")
+      ("solun-directory,D", po::value<std::string>(&outdir)->default_value(std::string("data/")), "Directory where to save solution and grid data")
       ;
 
     po::variables_map vm;
@@ -162,26 +182,34 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
   algebra::vector u_pts = burgers.init_u();
 
   std::cout << "# Initialising output utilities...\n";
-  burgers.diff.save_data(griddir);
-  std::cout << "# outputting solution to file: " << outfile << "...\n";
-  std::ofstream output(outfile);
-  output << std::scientific << std::setprecision(6) <<
-    "# solution to burger's equation\n" <<
-    "# N_grid = "   << burgers.size() << '\n' <<
-    "# nu     = "   << burgers.nu << '\n' <<
-    "# (a,b)  = ( " << a << " , " << b << " )\n" <<
-    "# t_end  = "   << t1 << '\n';
-  observer<N_pts> obs(burgers,output);
+  std::ofstream output(outdir+"solution.dat");
+  observer<N_pts> obs(burgers, outdir, t1, dt, output);
+  std::cout << "# -> outputting solution to file: " << outdir << "solution.dat...\n";
 
-  double t0=0.0, dt_init=1.0e-9;
+  double t0=0.0;
   {
     namespace ode = boost::numeric::odeint;
-    auto stepper = ode::make_controlled<ode::runge_kutta_dopri5<algebra::vector> >
-                                                                   (burgers.epsabs, burgers.epsrel);
-    size_t n_steps = integrate_adaptive( stepper,
-                                         burgers,
-                                         u_pts, t0, t1, dt_init,
-                                         obs );
+
+    // auto stepper = ode::make_controlled<
+    //   ode::runge_kutta_dopri5<
+    //     algebra::vector, double, algebra::vector, double, ode::vector_space_algebra
+    //     >
+    //   > (burgers.epsabs, burgers.epsrel);
+    // size_t n_steps = ode::integrate_adaptive( stepper,
+    //                                           burgers,
+    //                                           u_pts,
+    //                                           t0, t1, dt,
+    //                                           obs );
+
+    typedef ode::runge_kutta4<
+      algebra::vector, double, algebra::vector, double, ode::vector_space_algebra > stepper;
+    size_t n_steps = ode::integrate_const( stepper(),
+                                           burgers,
+                                           u_pts,
+                                           t0, t1, dt,
+                                           obs );
+
+
     obs(u_pts, t1);
     std::cout << "# N steps = " << n_steps << std::endl;
   }
