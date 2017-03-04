@@ -2,13 +2,31 @@
 
 import sys as sys
 import numpy as np
+
+import matplotlib
+
+## -------------------- whether to save the profile or not -------------------- ##
+save = False
+name='/home/frank/Dropbox/burgers.mp4'
+for arg in sys.argv:
+    if( arg=="save" ):
+        save = True
+        #name = sys.argv[2]
+
+if( save==True ):
+    # if working remotely need to do this for saving profiles
+    # ---> must be before importing matplotlib.pyplot or pylab!
+    matplotlib.use('Agg')
+## ---------------------------------------------------------------------------- ##
+
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
 
 ls = [ '-', '--' ]
 pt = [ 'o' ]
-cl = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c','#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']
+cl = ['#a6cee3','#1f78b4','#b2df8a','#33a02c','#fb9a99','#e31a1c',
+      '#fdbf6f','#ff7f00','#cab2d6','#6a3d9a','#ffff99','#b15928']
 
 
 print "# reading data from files...."
@@ -17,22 +35,25 @@ print "# reading data from files...."
 grid = np.loadtxt("data/grid.dat", unpack=True)
 N_grid  = len(grid)
 print "# .... have grid data"
-print grid
+
 
 time, nu = np.loadtxt("data/solution.dat", comments=["#","-----","d:"], usecols=(1,2), unpack=True)
 N_steps = len(time)
 print "# .... have time data"
-print time
+
 
 solun = np.loadtxt("data/solution.dat", comments=["#","-----","t:"], usecols=(1,2,3), unpack=True)
 u = np.reshape(solun[0], (N_steps,N_grid))
 du = np.reshape(solun[1], (N_steps,N_grid))
 print "# .... have solution data"
-print u
 
 lim_x = [np.amin(grid), np.amax(grid)]
 lim_u = [np.amin(u), np.amax(u)]
 lim_du = [np.amin(du), np.amax(du)]
+
+print lim_x
+print lim_u
+print lim_du
 
 fig = plt.figure( figsize=(8, 10) )
 
@@ -57,7 +78,7 @@ ax_u.set_ylim( lim_u )
 ax_u.set_ylabel("u ()")
 
 ax_du.set_xlim( lim_x )
-ax_du.set_ylim( lim_u )
+ax_du.set_ylim( lim_du )
 ax_du.set_ylabel("du/dx ()")
 ax_du.set_xlabel("x ()")
 

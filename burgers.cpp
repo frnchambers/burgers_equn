@@ -55,7 +55,7 @@ struct burgers_equn {  // ------------------------------------------------------
     return u_pts;
   }
 
-  void operator() ( const algebra::vector &u , algebra::vector &dudt , double t ) const {
+  void operator() ( const algebra::vector &u , algebra::vector &dudlogt , double t ) const {
 
     diff.derivs(u, dudx);
     diff.derivs2(u, d2udx2);
@@ -68,12 +68,12 @@ struct burgers_equn {  // ------------------------------------------------------
     }
 
   // boundary points constant
-    dudt[0] = 0.0;
-    dudt[N-1] = 0.0;
+    dudlogt[0] = 0.0;
+    dudlogt[N-1] = 0.0;
     
   // inner points
     for ( size_t i=1; i<N-1; ++i )
-      dudt[i] = -ududx[i] + nu*d2udx2[i];
+      dudlogt[i] = -ududx[i] + nu*d2udx2[i];
   }
 
 };  // ------------------------------------------------------------------------------------------ //
@@ -90,9 +90,9 @@ struct observer {  // ----------------------------------------------------------
   const int every;
 
   observer ( const burgers_equn<N> &ode_in, const std::string &griddir,
-             const double t_end, const double dt, 
+             const double t_end, const double dt, const int n_prints,
              std::ofstream &out_in )
-    : ode(ode_in), out(out_in), every( static_cast<int>(t_end/dt/10) )
+    : ode(ode_in), out(out_in), every( static_cast<int>(t_end/(dt*static_cast<double>(n_prints)) ) )
   {
     out << std::scientific << std::setprecision(6) <<
       "# solution to burger's equation\n" <<
@@ -144,9 +144,9 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
   const size_t N_pts=21;
 #endif
 
-  std::cout << N_pts << std::endl;
 // -- Parameters used in solution, location to save solution -- //
   double a, b, nu, t1, dt;
+  int n_prints;
   std::string outdir;
 // ------------------------------------------------------------ // 
 
@@ -161,6 +161,7 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
       ("ode-coeff,nu", po::value<double>(&nu)->default_value(1.0), "Diffusion coefficient in equation")
       ("dt,s", po::value<double>(&dt)->default_value(1.0e-6),"Initial time step")
       ("t-end,t", po::value<double>(&t1)->default_value(1.0),"Time to integrate until")
+      ("n-prints,n", po::value<int>(&n_prints)->default_value(200),"Number of steps to print out")
       ("solun-directory,D", po::value<std::string>(&outdir)->default_value(std::string("data/")), "Directory where to save solution and grid data")
       ;
 
@@ -183,10 +184,9 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
 
   std::cout << "# Initialising output utilities...\n";
   std::ofstream output(outdir+"solution.dat");
-  observer<N_pts> obs(burgers, outdir, t1, dt, output);
+  observer<N_pts> obs(burgers, outdir, t1, dt, n_prints, output);
   std::cout << "# -> outputting solution to file: " << outdir << "solution.dat...\n";
 
-  double t0=0.0;
   {
     namespace ode = boost::numeric::odeint;
 
@@ -206,7 +206,7 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
     size_t n_steps = ode::integrate_const( stepper(),
                                            burgers,
                                            u_pts,
-                                           t0, t1, dt,
+                                           0.0, t1, dt,
                                            obs );
 
 
