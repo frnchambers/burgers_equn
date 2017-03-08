@@ -51,9 +51,9 @@ lim_x = [np.amin(grid), np.amax(grid)]
 lim_u = [np.amin(u), np.amax(u)]
 lim_du = [np.amin(du), np.amax(du)]
 
-print lim_x
-print lim_u
-print lim_du
+# print lim_x
+# print lim_u
+# print lim_du
 
 fig = plt.figure( figsize=(8, 10) )
 

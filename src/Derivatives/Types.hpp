@@ -21,12 +21,13 @@ namespace grid_types {  // -----------------------------------------------------
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // ---------------------------------------------------------------------------------------------- //
-namespace algebra {  // ------------------------------------------------------------------- //
-  // using vector = boost::numeric::ublas::vector< double >;
-  // using matrix = boost::numeric::ublas::matrix< double >;
+namespace algebra {  // ------------------------------------------------------------------------- //
+  using vector = boost::numeric::ublas::vector< double >;
+  using matrix = boost::numeric::ublas::matrix< double >;
 
-  using vector = blaze::DynamicVector<double, blaze::columnVector>;
-  using matrix = blaze::DynamicMatrix<double>;
+// can't get working satisfactoraly with boost::numeric::odeint :( will be a long job to fix
+  // using vector = blaze::DynamicVector<double, blaze::columnVector>;
+  // using matrix = blaze::DynamicMatrix<double>;
 }  // ------------------------------------------------------------------------------------------- //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 

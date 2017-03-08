@@ -42,12 +42,12 @@ public:
   }
 
   void derivs  ( const algebra::vector &fpts, algebra::vector &dfptsdx ) const {
-    // dfptsdx = prod( d1lpts, fpts );
-    dfptsdx = d1lpts * fpts;
+    dfptsdx = prod( d1lpts, fpts );
+    // dfptsdx = d1lpts * fpts;
   }
   void derivs2 ( const algebra::vector &fpts, algebra::vector &d2fptsdx2 ) const {
-    // d2fptsdx2 = prod( d2lpts, fpts );
-    d2fptsdx2 = d2lpts * fpts;
+    d2fptsdx2 = prod( d2lpts, fpts );
+    // d2fptsdx2 = d2lpts * fpts;
   }
 
   double df_FD_d ( const size_t &i, const size_t &j ) const {

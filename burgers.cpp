@@ -9,13 +9,13 @@
 #include <boost/program_options.hpp>
 
 #include <Derivatives/Types.hpp>
-#include <Derivatives/Types.hpp>
+#include <Derivatives/Grid.hpp>
 #include <Derivatives/Lagrange.hpp>
 
 #include <boost/numeric/odeint.hpp>
-#include <Derivatives/Blaze_range_algebra.hpp>
 
-#include <boost/numeric/odeint/external/blaze/blaze_resize.hpp>
+// #include <Derivatives/Blaze_range_algebra.hpp>
+// #include <boost/numeric/odeint/external/blaze/blaze_resize.hpp>
 // #include <boost/numeric/odeint/external/blaze/blaze_algebra_dispatcher.hpp>
 
 
@@ -108,12 +108,12 @@ struct observer {  // ----------------------------------------------------------
   }
 
   void operator() ( const algebra::vector &u, const double &t ) {
+    static int count=0;
 
-    std::cout << "t = " << t << "\r";
+    std::cout << "t = " << t << ", count = " << count << ", saves = " << count/every << "\r";
 
-    // static int count=0;
-    // if ( count % every == 0 ) {
-      out << "t: " << t << ' ' << ode.nu << '\n';
+    if ( count % every == 0 ) {
+      out << "t: " << t << ' ' << count << '\n';
 
       ode.diff.derivs(u, ode.dudx);
       ode.diff.derivs2(u, ode.d2udx2);
@@ -125,8 +125,8 @@ struct observer {  // ----------------------------------------------------------
           '\n';
       out << "-----" << std::endl;
 
-    // }
-    // count++;
+    }
+    count++;
   }
 
 };  // ------------------------------------------------------------------------------------------ //
@@ -161,9 +161,9 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
       ("LHS-boundary,a", po::value<double>(&a)->default_value(-1.0), "Left hand side boundary")
       ("RHS-boundary,b", po::value<double>(&b)->default_value(1.0), "Right hand side boundary")
       ("ode-coeff,nu", po::value<double>(&nu)->default_value(1.0), "Diffusion coefficient in equation")
-      ("dt,s", po::value<double>(&dt)->default_value(1.0e-6),"Initial time step")
+      ("dt,s", po::value<double>(&dt)->default_value(1.0e-5),"Initial time step")
       ("t-end,t", po::value<double>(&t1)->default_value(1.0),"Time to integrate until")
-      ("n-prints,n", po::value<int>(&n_prints)->default_value(200),"Number of steps to print out")
+      ("n-prints,n", po::value<int>(&n_prints)->default_value(100),"Number of steps to print out")
       ("solun-directory,D", po::value<std::string>(&outdir)->default_value(std::string("data/")), "Directory where to save solution and grid data")
       ;
 
@@ -192,24 +192,9 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
   {
     namespace ode = boost::numeric::odeint;
 
-    typedef ode::runge_kutta_dopri5<
-      algebra::vector, double, algebra::vector, double,
-      blaze_range_algebra,
-      ode::operations_dispatcher<algebra::vector>::operations_type ,
-      ode::initially_resizer
-    > stepper_type;
-    auto stepper = ode::make_controlled( burgers.epsabs, burgers.epsrel, stepper_type() );
-    size_t n_steps = ode::integrate_adaptive( stepper,
-                                              burgers,
-                                              u_pts,
-                                              0.0, t1, dt,
-                                              obs );
-
-    // size_t n_steps = ode::integrate_const( stepper,
-    //                                        burgers,
-    //                                        u_pts,
-    //                                        0.0, t1, dt,
-    //                                        obs );
+    typedef ode::adams_bashforth_moulton<5, algebra::vector> stepper_type;
+    //auto stepper = ode::make_controlled( burgers.epsabs, burgers.epsrel, stepper_type() );
+    size_t n_steps = ode::integrate_const( stepper_type(), burgers, u_pts, 0.0, t1, dt, obs );
 
     obs(u_pts, t1);
     std::cout << "# N steps = " << n_steps << std::endl;
