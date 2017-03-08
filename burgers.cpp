@@ -9,12 +9,14 @@
 #include <boost/program_options.hpp>
 
 #include <Derivatives/Types.hpp>
-#include <Derivatives/Grid.hpp>
+#include <Derivatives/Types.hpp>
 #include <Derivatives/Lagrange.hpp>
 
 #include <boost/numeric/odeint.hpp>
-#include </usr/include/boost/numeric/odeint/external/blaze/blaze_resize.hpp>
+#include <Derivatives/Blaze_range_algebra.hpp>
 
+#include <boost/numeric/odeint/external/blaze/blaze_resize.hpp>
+// #include <boost/numeric/odeint/external/blaze/blaze_algebra_dispatcher.hpp>
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -106,11 +108,11 @@ struct observer {  // ----------------------------------------------------------
   }
 
   void operator() ( const algebra::vector &u, const double &t ) {
-    static int count=0;
 
     std::cout << "t = " << t << "\r";
 
-    if ( count % every == 0 ) {
+    // static int count=0;
+    // if ( count % every == 0 ) {
       out << "t: " << t << ' ' << ode.nu << '\n';
 
       ode.diff.derivs(u, ode.dudx);
@@ -123,8 +125,8 @@ struct observer {  // ----------------------------------------------------------
           '\n';
       out << "-----" << std::endl;
 
-    }
-    count++;
+    // }
+    // count++;
   }
 
 };  // ------------------------------------------------------------------------------------------ //
@@ -140,8 +142,8 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
 #if defined NGRID
   const size_t N_pts=NGRID;
 #else
-#warning no grid size specified, using default value of 21
-  const size_t N_pts=21;
+#warning no grid size specified, using default value of 31
+  const size_t N_pts=31;
 #endif
 
 // -- Parameters used in solution, location to save solution -- //
@@ -190,25 +192,24 @@ int main( int argc, char * argv[] ) {  // --------------------------------------
   {
     namespace ode = boost::numeric::odeint;
 
-    // auto stepper = ode::make_controlled<
-    //   ode::runge_kutta_dopri5<
-    //     algebra::vector, double, algebra::vector, double, ode::vector_space_algebra
-    //     >
-    //   > (burgers.epsabs, burgers.epsrel);
-    // size_t n_steps = ode::integrate_adaptive( stepper,
-    //                                           burgers,
-    //                                           u_pts,
-    //                                           t0, t1, dt,
-    //                                           obs );
+    typedef ode::runge_kutta_dopri5<
+      algebra::vector, double, algebra::vector, double,
+      blaze_range_algebra,
+      ode::operations_dispatcher<algebra::vector>::operations_type ,
+      ode::initially_resizer
+    > stepper_type;
+    auto stepper = ode::make_controlled( burgers.epsabs, burgers.epsrel, stepper_type() );
+    size_t n_steps = ode::integrate_adaptive( stepper,
+                                              burgers,
+                                              u_pts,
+                                              0.0, t1, dt,
+                                              obs );
 
-    typedef ode::runge_kutta4<
-      algebra::vector, double, algebra::vector, double, ode::vector_space_algebra > stepper;
-    size_t n_steps = ode::integrate_const( stepper(),
-                                           burgers,
-                                           u_pts,
-                                           0.0, t1, dt,
-                                           obs );
-
+    // size_t n_steps = ode::integrate_const( stepper,
+    //                                        burgers,
+    //                                        u_pts,
+    //                                        0.0, t1, dt,
+    //                                        obs );
 
     obs(u_pts, t1);
     std::cout << "# N steps = " << n_steps << std::endl;

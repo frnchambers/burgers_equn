@@ -25,19 +25,10 @@ namespace algebra {  // --------------------------------------------------------
   // using vector = boost::numeric::ublas::vector< double >;
   // using matrix = boost::numeric::ublas::matrix< double >;
 
-  using vector = blaze::DynamicVector<double>;
+  using vector = blaze::DynamicVector<double, blaze::columnVector>;
   using matrix = blaze::DynamicMatrix<double>;
 }  // ------------------------------------------------------------------------------------------- //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// namespace boost { namespace numeric { namespace odeint {
-
-// struct is_resizeable< algebra::vector >
-// {
-//     typedef boost::true_type type;
-//     static const bool value = type::value;
-// };
-
-// } } }
 
 #endif
